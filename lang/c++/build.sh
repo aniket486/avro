@@ -76,7 +76,24 @@ function do_dist() {
 
 case "$target" in
   lint)
-    echo 'This is a stub where someone can provide linting.'
+    # Variable that will hold the name of the clang-format command
+    CLANG_FORMAT=""
+
+    # Some distros just call it clang-format. Others (e.g. Ubuntu) are insistent
+    # that the version number be part of the command. We prefer clang-format if
+    # that's present, otherwise we work backwards from highest version to lowest
+    # version.
+    for clangfmt in clang-format{,-{4,3}.{9,8,7,6,5,4,3,2,1,0}}; do
+      if which "$clangfmt" &>/dev/null; then
+        CLANG_FORMAT="$clangfmt"
+        break
+      fi
+    done
+    if [ -z "${CLANG_FORMAT}" ]; then
+      echo "Failed to find clang-format. Skipping lint."
+    else
+      find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\)' -exec ${CLANG_FORMAT} -i '{}' \;
+    fi
     ;;
 
   test)
