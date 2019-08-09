@@ -24,21 +24,12 @@ namespace json {
 using std::ostringstream;
 using std::string;
 
-const char* const
-JsonParser::tokenNames[] = {
-    "Null",
-    "Bool",
-    "Integer",
-    "Double",
-    "String",
-    "Array start",
-    "Array end",
-    "Object start",
-    "Object end",
+const char* const JsonParser::tokenNames[] = {
+    "Null",        "Bool",      "Integer",      "Double",     "String",
+    "Array start", "Array end", "Object start", "Object end",
 };
 
-char JsonParser::next()
-{
+char JsonParser::next() {
     char ch = hasNext ? nextChar : ' ';
     while (isspace(ch)) {
         if (ch == '\n') {
@@ -50,18 +41,16 @@ char JsonParser::next()
     return ch;
 }
 
-void JsonParser::expectToken(Token tk)
-{
+void JsonParser::expectToken(Token tk) {
     if (advance() != tk) {
         if (tk == tkDouble) {
-            if(cur() == tkString
-                && (sv == "Infinity" || sv == "-Infinity" || sv == "NaN")) {
+            if (cur() == tkString &&
+                (sv == "Infinity" || sv == "-Infinity" || sv == "NaN")) {
                 curToken = tkDouble;
-                dv = sv == "Infinity" ?
-                    std::numeric_limits<double>::infinity() :
-                    sv == "-Infinity" ?
-                        -std::numeric_limits<double>::infinity() :
-                    std::numeric_limits<double>::quiet_NaN();
+                dv = sv == "Infinity"
+                         ? std::numeric_limits<double>::infinity()
+                         : sv == "-Infinity" ? -std::numeric_limits<double>::infinity()
+                                             : std::numeric_limits<double>::quiet_NaN();
                 return;
             } else if (cur() == tkLong) {
                 dv = double(lv);
@@ -69,15 +58,13 @@ void JsonParser::expectToken(Token tk)
             }
         }
         ostringstream oss;
-        oss << "Incorrect token in the stream. Expected: "
-            << JsonParser::toString(tk) << ", found "
-            << JsonParser::toString(cur());
+        oss << "Incorrect token in the stream. Expected: " << JsonParser::toString(tk)
+            << ", found " << JsonParser::toString(cur());
         throw Exception(oss.str());
     }
 }
 
-JsonParser::Token JsonParser::doAdvance()
-{
+JsonParser::Token JsonParser::doAdvance() {
     char ch = next();
     if (ch == ']') {
         if (curState == stArray0 || curState == stArrayN) {
@@ -148,14 +135,13 @@ JsonParser::Token JsonParser::doAdvance()
     }
 }
 
-JsonParser::Token JsonParser::tryNumber(char ch)
-{
+JsonParser::Token JsonParser::tryNumber(char ch) {
     sv.clear();
     sv.push_back(ch);
 
     hasNext = false;
     int state = (ch == '-') ? 0 : (ch == '0') ? 1 : 2;
-    for (; ;) {
+    for (;;) {
         switch (state) {
         case 0:
             if (in_.hasMore()) {
@@ -275,10 +261,9 @@ JsonParser::Token JsonParser::tryNumber(char ch)
     }
 }
 
-JsonParser::Token JsonParser::tryString()
-{
+JsonParser::Token JsonParser::tryString() {
     sv.clear();
-    for ( ; ;) {
+    for (;;) {
         char ch = in_.read();
         if (ch == '"') {
             return tkString;
@@ -297,26 +282,22 @@ JsonParser::Token JsonParser::tryString()
                 sv.push_back(ch);
                 break;
             case 'u':
-            case 'U':
-                {
-                    uint32_t n = 0;
-                    char e[4];
-                    in_.readBytes(reinterpret_cast<uint8_t*>(e), 4);
-                    sv.push_back('\\');
-                    sv.push_back(ch);
-                    for (int i = 0; i < 4; i++) {
-                        n *= 16;
-                        char c = e[i];
-                        if (isdigit(c) ||
-                            (c >= 'a' && c <= 'f') ||
-                            (c >= 'A' && c <= 'F')) {
-                            sv.push_back(c);
-                        } else {
-                            throw unexpected(c);
-                        }
+            case 'U': {
+                uint32_t n = 0;
+                char e[4];
+                in_.readBytes(reinterpret_cast<uint8_t*>(e), 4);
+                sv.push_back('\\');
+                sv.push_back(ch);
+                for (int i = 0; i < 4; i++) {
+                    n *= 16;
+                    char c = e[i];
+                    if (isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+                        sv.push_back(c);
+                    } else {
+                        throw unexpected(c);
                     }
                 }
-                break;
+            } break;
             default:
                 throw unexpected(ch);
             }
@@ -326,9 +307,7 @@ JsonParser::Token JsonParser::tryString()
     }
 }
 
-
-string JsonParser::decodeString(const string& s, bool binary)
-{
+string JsonParser::decodeString(const string& s, bool binary) {
     string result;
     for (string::const_iterator it = s.begin(); it != s.end(); ++it) {
         char ch = *it;
@@ -356,52 +335,49 @@ string JsonParser::decodeString(const string& s, bool binary)
                 result.push_back('\t');
                 continue;
             case 'u':
-            case 'U':
-                {
-                    uint32_t n = 0;
-                    char e[4];
-                    for (int i = 0; i < 4; i++) {
-                        n *= 16;
-                        char c = *++it;
-                        e[i] = c;
-                        if (isdigit(c)) {
-                            n += c - '0';
-                        } else if (c >= 'a' && c <= 'f') {
-                            n += c - 'a' + 10;
-                        } else if (c >= 'A' && c <= 'F') {
-                            n += c - 'A' + 10;
-                        }
-                    }
-                    if (binary) {
-                        if (n > 0xff) {
-                            throw Exception(boost::format(
-                                "Invalid byte for binary: %1%%2%") % ch %
-                                    string(e, 4));
-                        } else {
-                            result.push_back(n);
-                            continue;
-                        }
-                    }
-                    if (n < 0x80) {
-                        result.push_back(n);
-                    } else if (n < 0x800) {
-                        result.push_back((n >> 6) | 0xc0);
-                        result.push_back((n & 0x3f) | 0x80);
-                    } else if (n < 0x10000) {
-                        result.push_back((n >> 12) | 0xe0);
-                        result.push_back(((n >> 6)& 0x3f) | 0x80);
-                        result.push_back((n & 0x3f) | 0x80);
-                    } else if (n < 110000) {
-                        result.push_back((n >> 18) | 0xf0);
-                        result.push_back(((n >> 12)& 0x3f) | 0x80);
-                        result.push_back(((n >> 6)& 0x3f) | 0x80);
-                        result.push_back((n & 0x3f) | 0x80);
-                    } else {
-                        throw Exception(boost::format(
-                            "Invalid unicode value: %1%i%2%") % ch %
-                                string(e, 4));
+            case 'U': {
+                uint32_t n = 0;
+                char e[4];
+                for (int i = 0; i < 4; i++) {
+                    n *= 16;
+                    char c = *++it;
+                    e[i] = c;
+                    if (isdigit(c)) {
+                        n += c - '0';
+                    } else if (c >= 'a' && c <= 'f') {
+                        n += c - 'a' + 10;
+                    } else if (c >= 'A' && c <= 'F') {
+                        n += c - 'A' + 10;
                     }
                 }
+                if (binary) {
+                    if (n > 0xff) {
+                        throw Exception(boost::format("Invalid byte for binary: %1%%2%") %
+                                        ch % string(e, 4));
+                    } else {
+                        result.push_back(n);
+                        continue;
+                    }
+                }
+                if (n < 0x80) {
+                    result.push_back(n);
+                } else if (n < 0x800) {
+                    result.push_back((n >> 6) | 0xc0);
+                    result.push_back((n & 0x3f) | 0x80);
+                } else if (n < 0x10000) {
+                    result.push_back((n >> 12) | 0xe0);
+                    result.push_back(((n >> 6) & 0x3f) | 0x80);
+                    result.push_back((n & 0x3f) | 0x80);
+                } else if (n < 110000) {
+                    result.push_back((n >> 18) | 0xf0);
+                    result.push_back(((n >> 12) & 0x3f) | 0x80);
+                    result.push_back(((n >> 6) & 0x3f) | 0x80);
+                    result.push_back((n & 0x3f) | 0x80);
+                } else {
+                    throw Exception(boost::format("Invalid unicode value: %1%i%2%") % ch %
+                                    string(e, 4));
+                }
+            }
                 continue;
             }
         } else {
@@ -411,15 +387,13 @@ string JsonParser::decodeString(const string& s, bool binary)
     return result;
 }
 
-Exception JsonParser::unexpected(unsigned char c)
-{
+Exception JsonParser::unexpected(unsigned char c) {
     std::ostringstream oss;
     oss << "Unexpected character in json " << toHex(c / 16) << toHex(c % 16);
     return Exception(oss.str());
 }
 
-JsonParser::Token JsonParser::tryLiteral(const char exp[], size_t n, Token tk)
-{
+JsonParser::Token JsonParser::tryLiteral(const char exp[], size_t n, Token tk) {
     char c[100];
     in_.readBytes(reinterpret_cast<uint8_t*>(c), n);
     for (size_t i = 0; i < n; ++i) {
@@ -437,6 +411,5 @@ JsonParser::Token JsonParser::tryLiteral(const char exp[], size_t n, Token tk)
     return tk;
 }
 
-}
-}
-
+} // namespace json
+} // namespace avro

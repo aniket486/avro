@@ -22,24 +22,19 @@
 #include "imaginary.hh"
 
 #include "avro/Compiler.hh"
-#include "avro/Encoder.hh"
 #include "avro/Decoder.hh"
-#include "avro/Specific.hh"
+#include "avro/Encoder.hh"
 #include "avro/Generic.hh"
+#include "avro/Specific.hh"
 
-
-
-avro::ValidSchema load(const char* filename)
-{
+avro::ValidSchema load(const char* filename) {
     std::ifstream ifs(filename);
     avro::ValidSchema result;
     avro::compileJsonSchema(ifs, result);
     return result;
 }
 
-int
-main()
-{
+int main() {
     avro::ValidSchema cpxSchema = load("cpx.json");
     avro::ValidSchema imaginarySchema = load("imaginary.json");
 
@@ -52,12 +47,11 @@ main()
     avro::encode(*e, c1);
 
     std::unique_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
-    avro::DecoderPtr d = avro::resolvingDecoder(cpxSchema, imaginarySchema,
-        avro::binaryDecoder());
+    avro::DecoderPtr d =
+        avro::resolvingDecoder(cpxSchema, imaginarySchema, avro::binaryDecoder());
     d->init(*in);
 
     i::cpx c2;
     avro::decode(*d, c2);
     std::cout << "Imaginary: " << c2.im << std::endl;
-
 }

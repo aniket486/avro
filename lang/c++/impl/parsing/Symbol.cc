@@ -16,61 +16,32 @@
  * limitations under the License.
  */
 
-
 #include "Symbol.hh"
 
 namespace avro {
 namespace parsing {
 
-using std::vector;
-using std::string;
 using std::ostringstream;
+using std::string;
+using std::vector;
 
 const char* Symbol::stringValues[] = {
-    "TerminalLow",
-    "Null",
-    "Bool",
-    "Int",
-    "Long",
-    "Float",
-    "Double",
-    "String",
-    "Bytes",
-    "ArrayStart",
-    "ArrayEnd",
-    "MapStart",
-    "MapEnd",
-    "Fixed",
-    "Enum",
-    "Union",
-    "TerminalHigh",
-    "SizeCheck",
-    "NameList",
-    "Root",
-    "Repeater",
-    "Alternative",
-    "Placeholder",
-    "Indirect",
-    "Symbolic",
-    "EnumAdjust",
-    "UnionAdjust",
-    "SkipStart",
-    "Resolve",
-    "ImplicitActionLow",
-    "RecordStart",
-    "RecordEnd",
-    "Field",
-    "Record",
-    "SizeList",
-    "WriterUnion",
-    "DefaultStart",
-    "DefaultEnd",
-    "ImplicitActionHigh",
-    "Error"
-};
+    "TerminalLow",  "Null",         "Bool",
+    "Int",          "Long",         "Float",
+    "Double",       "String",       "Bytes",
+    "ArrayStart",   "ArrayEnd",     "MapStart",
+    "MapEnd",       "Fixed",        "Enum",
+    "Union",        "TerminalHigh", "SizeCheck",
+    "NameList",     "Root",         "Repeater",
+    "Alternative",  "Placeholder",  "Indirect",
+    "Symbolic",     "EnumAdjust",   "UnionAdjust",
+    "SkipStart",    "Resolve",      "ImplicitActionLow",
+    "RecordStart",  "RecordEnd",    "Field",
+    "Record",       "SizeList",     "WriterUnion",
+    "DefaultStart", "DefaultEnd",   "ImplicitActionHigh",
+    "Error"};
 
-Symbol Symbol::enumAdjustSymbol(const NodePtr& writer, const NodePtr& reader)
-{
+Symbol Symbol::enumAdjustSymbol(const NodePtr& writer, const NodePtr& reader) {
     vector<string> rs;
     size_t rc = reader->names();
     for (size_t i = 0; i < rc; ++i) {
@@ -97,8 +68,7 @@ Symbol Symbol::enumAdjustSymbol(const NodePtr& writer, const NodePtr& reader)
     return Symbol(sEnumAdjust, make_pair(adj, err));
 }
 
-Symbol Symbol::error(const NodePtr& writer, const NodePtr& reader)
-{
+Symbol Symbol::error(const NodePtr& writer, const NodePtr& reader) {
     ostringstream oss;
     oss << "Cannot resolve: " << std::endl;
     writer->printJson(oss, 0);
@@ -107,5 +77,5 @@ Symbol Symbol::error(const NodePtr& writer, const NodePtr& reader)
     return Symbol(sError, oss.str());
 }
 
-}   // namespace parsing
-}   // namespace avro
+} // namespace parsing
+} // namespace avro
