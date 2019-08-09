@@ -24,21 +24,15 @@ namespace avro {
 
 using std::string;
 
-Node::~Node()
-{ }
+Node::~Node() {}
 
-Name::Name(const std::string& name)
-{
-    fullname(name);
-}
+Name::Name(const std::string& name) { fullname(name); }
 
-const string Name::fullname() const
-{
+const string Name::fullname() const {
     return (ns_.empty()) ? simpleName_ : ns_ + "." + simpleName_;
 }
 
-void Name::fullname(const string& name)
-{
+void Name::fullname(const string& name) {
     string::size_type n = name.find_last_of('.');
     if (n == string::npos) {
         simpleName_ = name;
@@ -50,35 +44,29 @@ void Name::fullname(const string& name)
     check();
 }
 
-bool Name::operator < (const Name& n) const
-{
-    return (ns_ < n.ns_) ? true :
-        (n.ns_ < ns_) ? false :
-        (simpleName_ < n.simpleName_);
+bool Name::operator<(const Name& n) const {
+    return (ns_ < n.ns_) ? true : (n.ns_ < ns_) ? false : (simpleName_ < n.simpleName_);
 }
 
-static bool invalidChar1(char c)
-{
+static bool invalidChar1(char c) {
     return !isalnum(c) && c != '_' && c != '.' && c != '$';
 }
 
-static bool invalidChar2(char c)
-{
-    return !isalnum(c) && c != '_';
-}
+static bool invalidChar2(char c) { return !isalnum(c) && c != '_'; }
 
-void Name::check() const
-{
-    if (! ns_.empty() && (ns_[0] == '.' || ns_[ns_.size() - 1] == '.' || std::find_if(ns_.begin(), ns_.end(), invalidChar1) != ns_.end())) {
+void Name::check() const {
+    if (!ns_.empty() &&
+        (ns_[0] == '.' || ns_[ns_.size() - 1] == '.' ||
+         std::find_if(ns_.begin(), ns_.end(), invalidChar1) != ns_.end())) {
         throw Exception("Invalid namespace: " + ns_);
     }
-    if (simpleName_.empty() || std::find_if(simpleName_.begin(), simpleName_.end(), invalidChar2) != simpleName_.end()) {
+    if (simpleName_.empty() || std::find_if(simpleName_.begin(), simpleName_.end(),
+                                            invalidChar2) != simpleName_.end()) {
         throw Exception("Invalid name: " + simpleName_);
     }
 }
 
-bool Name::operator == (const Name& n) const
-{
+bool Name::operator==(const Name& n) const {
     return ns_ == n.ns_ && simpleName_ == n.simpleName_;
 }
 
@@ -97,15 +85,13 @@ void Node::setLogicalType(LogicalType logicalType) {
         if (type_ == AVRO_FIXED) {
             // Max precision that can be supported by the current size of
             // the FIXED type.
-            long maxPrecision =
-                floor(log10(pow(2.0, 8.0 * fixedSize() - 1) - 1));
+            long maxPrecision = floor(log10(pow(2.0, 8.0 * fixedSize() - 1) - 1));
             if (logicalType.precision() > maxPrecision) {
                 throw Exception(
-                    boost::format(
-                        "DECIMAL precision %1% is too large for the "
-                        "FIXED type of size %2%, precision cannot be "
-                        "larget than %3%") % logicalType.precision() %
-                        fixedSize() % maxPrecision);
+                    boost::format("DECIMAL precision %1% is too large for the "
+                                  "FIXED type of size %2%, precision cannot be "
+                                  "larget than %3%") %
+                    logicalType.precision() % fixedSize() % maxPrecision);
             }
         }
         if (logicalType.scale() > logicalType.precision()) {

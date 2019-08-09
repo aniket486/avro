@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-#include "Exception.hh"
 #include "LogicalType.hh"
+#include "Exception.hh"
 
 namespace avro {
 
-LogicalType::LogicalType(Type type)
-    : type_(type), precision_(0), scale_(0) {}
+LogicalType::LogicalType(Type type) : type_(type), precision_(0), scale_(0) {}
 
-LogicalType::Type LogicalType::type() const {
-    return type_;
-}
+LogicalType::Type LogicalType::type() const { return type_; }
 
 void LogicalType::setPrecision(int precision) {
     if (type_ != DECIMAL) {
@@ -78,4 +75,4 @@ void LogicalType::printJson(std::ostream& os) const {
     }
 }
 
-}  // namespace avro
+} // namespace avro

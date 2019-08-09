@@ -21,41 +21,34 @@
 
 namespace avro {
 
+using std::ostringstream;
 using std::string;
 using std::vector;
-using std::ostringstream;
 
 typedef vector<uint8_t> bytes;
 
 void GenericContainer::assertType(const NodePtr& schema, Type type) {
     if (schema->type() != type) {
         throw Exception(boost::format("Schema type %1 expected %2") %
-            toString(schema->type()) % toString(type));
+                        toString(schema->type()) % toString(type));
     }
 }
 
-GenericReader::GenericReader(const ValidSchema& s, const DecoderPtr& decoder) :
-    schema_(s), isResolving_(dynamic_cast<ResolvingDecoder*>(&(*decoder)) != 0),
-    decoder_(decoder)
-{
-}
+GenericReader::GenericReader(const ValidSchema& s, const DecoderPtr& decoder)
+    : schema_(s), isResolving_(dynamic_cast<ResolvingDecoder*>(&(*decoder)) != 0),
+      decoder_(decoder) {}
 
 GenericReader::GenericReader(const ValidSchema& writerSchema,
-    const ValidSchema& readerSchema, const DecoderPtr& decoder) :
-    schema_(readerSchema),
-    isResolving_(true),
-    decoder_(resolvingDecoder(writerSchema, readerSchema, decoder))
-{
-}
+                             const ValidSchema& readerSchema, const DecoderPtr& decoder)
+    : schema_(readerSchema), isResolving_(true),
+      decoder_(resolvingDecoder(writerSchema, readerSchema, decoder)) {}
 
-void GenericReader::read(GenericDatum& datum) const
-{
+void GenericReader::read(GenericDatum& datum) const {
     datum = GenericDatum(schema_.root());
     read(datum, *decoder_, isResolving_);
 }
 
-void GenericReader::read(GenericDatum& datum, Decoder& d, bool isResolving)
-{
+void GenericReader::read(GenericDatum& datum, Decoder& d, bool isResolving) {
     if (datum.isUnion()) {
         datum.selectBranch(d.decodeUnionIndex());
     }
@@ -84,94 +77,77 @@ void GenericReader::read(GenericDatum& datum, Decoder& d, bool isResolving)
     case AVRO_BYTES:
         d.decodeBytes(datum.value<bytes>());
         break;
-    case AVRO_FIXED:
-        {
-            GenericFixed& f = datum.value<GenericFixed>();
-            d.decodeFixed(f.schema()->fixedSize(), f.value());
-        }
-        break;
-    case AVRO_RECORD:
-        {
-            GenericRecord& r = datum.value<GenericRecord>();
-            size_t c = r.schema()->leaves();
-            if (isResolving) {
-                std::vector<size_t> fo =
-                    static_cast<ResolvingDecoder&>(d).fieldOrder();
-                for (size_t i = 0; i < c; ++i) {
-                    read(r.fieldAt(fo[i]), d, isResolving);
-                }
-            } else {
-                for (size_t i = 0; i < c; ++i) {
-                    read(r.fieldAt(i), d, isResolving);
-                }
+    case AVRO_FIXED: {
+        GenericFixed& f = datum.value<GenericFixed>();
+        d.decodeFixed(f.schema()->fixedSize(), f.value());
+    } break;
+    case AVRO_RECORD: {
+        GenericRecord& r = datum.value<GenericRecord>();
+        size_t c = r.schema()->leaves();
+        if (isResolving) {
+            std::vector<size_t> fo = static_cast<ResolvingDecoder&>(d).fieldOrder();
+            for (size_t i = 0; i < c; ++i) {
+                read(r.fieldAt(fo[i]), d, isResolving);
+            }
+        } else {
+            for (size_t i = 0; i < c; ++i) {
+                read(r.fieldAt(i), d, isResolving);
             }
         }
-        break;
+    } break;
     case AVRO_ENUM:
         datum.value<GenericEnum>().set(d.decodeEnum());
         break;
-    case AVRO_ARRAY:
-        {
-            GenericArray& v = datum.value<GenericArray>();
-            vector<GenericDatum>& r = v.value();
-            const NodePtr& nn = v.schema()->leafAt(0);
-            r.resize(0);
-            size_t start = 0;
-            for (size_t m = d.arrayStart(); m != 0; m = d.arrayNext()) {
-                r.resize(r.size() + m);
-                for (; start < r.size(); ++start) {
-                    r[start] = GenericDatum(nn);
-                    read(r[start], d, isResolving);
-                }
+    case AVRO_ARRAY: {
+        GenericArray& v = datum.value<GenericArray>();
+        vector<GenericDatum>& r = v.value();
+        const NodePtr& nn = v.schema()->leafAt(0);
+        r.resize(0);
+        size_t start = 0;
+        for (size_t m = d.arrayStart(); m != 0; m = d.arrayNext()) {
+            r.resize(r.size() + m);
+            for (; start < r.size(); ++start) {
+                r[start] = GenericDatum(nn);
+                read(r[start], d, isResolving);
             }
         }
-        break;
-    case AVRO_MAP:
-        {
-            GenericMap& v = datum.value<GenericMap>();
-            GenericMap::Value& r = v.value();
-            const NodePtr& nn = v.schema()->leafAt(1);
-            r.resize(0);
-            size_t start = 0;
-            for (size_t m = d.mapStart(); m != 0; m = d.mapNext()) {
-                r.resize(r.size() + m);
-                for (; start < r.size(); ++start) {
-                    d.decodeString(r[start].first);
-                    r[start].second = GenericDatum(nn);
-                    read(r[start].second, d, isResolving);
-                }
+    } break;
+    case AVRO_MAP: {
+        GenericMap& v = datum.value<GenericMap>();
+        GenericMap::Value& r = v.value();
+        const NodePtr& nn = v.schema()->leafAt(1);
+        r.resize(0);
+        size_t start = 0;
+        for (size_t m = d.mapStart(); m != 0; m = d.mapNext()) {
+            r.resize(r.size() + m);
+            for (; start < r.size(); ++start) {
+                d.decodeString(r[start].first);
+                r[start].second = GenericDatum(nn);
+                read(r[start].second, d, isResolving);
             }
         }
-        break;
+    } break;
     default:
         throw Exception(boost::format("Unknown schema type %1%") %
-            toString(datum.type()));
+                        toString(datum.type()));
     }
 }
 
-void GenericReader::read(Decoder& d, GenericDatum& g, const ValidSchema& s)
-{
+void GenericReader::read(Decoder& d, GenericDatum& g, const ValidSchema& s) {
     g = GenericDatum(s);
     read(d, g);
 }
 
-void GenericReader::read(Decoder& d, GenericDatum& g)
-{
+void GenericReader::read(Decoder& d, GenericDatum& g) {
     read(g, d, dynamic_cast<ResolvingDecoder*>(&d) != 0);
 }
 
-GenericWriter::GenericWriter(const ValidSchema& s, const EncoderPtr& encoder) :
-    schema_(s), encoder_(encoder)
-{
-}
+GenericWriter::GenericWriter(const ValidSchema& s, const EncoderPtr& encoder)
+    : schema_(s), encoder_(encoder) {}
 
-void GenericWriter::write(const GenericDatum& datum) const
-{
-    write(datum, *encoder_);
-}
+void GenericWriter::write(const GenericDatum& datum) const { write(datum, *encoder_); }
 
-void GenericWriter::write(const GenericDatum& datum, Encoder& e)
-{
+void GenericWriter::write(const GenericDatum& datum, Encoder& e) {
     if (datum.isUnion()) {
         e.encodeUnionIndex(datum.unionBranch());
     }
@@ -203,58 +179,48 @@ void GenericWriter::write(const GenericDatum& datum, Encoder& e)
     case AVRO_FIXED:
         e.encodeFixed(datum.value<GenericFixed>().value());
         break;
-    case AVRO_RECORD:
-        {
-            const GenericRecord& r = datum.value<GenericRecord>();
-            size_t c = r.schema()->leaves();
-            for (size_t i = 0; i < c; ++i) {
-                write(r.fieldAt(i), e);
-            }
+    case AVRO_RECORD: {
+        const GenericRecord& r = datum.value<GenericRecord>();
+        size_t c = r.schema()->leaves();
+        for (size_t i = 0; i < c; ++i) {
+            write(r.fieldAt(i), e);
         }
-        break;
+    } break;
     case AVRO_ENUM:
         e.encodeEnum(datum.value<GenericEnum>().value());
         break;
-    case AVRO_ARRAY:
-        {
-            const GenericArray::Value& r = datum.value<GenericArray>().value();
-            e.arrayStart();
-            if (! r.empty()) {
-                e.setItemCount(r.size());
-                for (GenericArray::Value::const_iterator it = r.begin();
-                    it != r.end(); ++it) {
-                    e.startItem();
-                    write(*it, e);
-                }
+    case AVRO_ARRAY: {
+        const GenericArray::Value& r = datum.value<GenericArray>().value();
+        e.arrayStart();
+        if (!r.empty()) {
+            e.setItemCount(r.size());
+            for (GenericArray::Value::const_iterator it = r.begin(); it != r.end();
+                 ++it) {
+                e.startItem();
+                write(*it, e);
             }
-            e.arrayEnd();
         }
-        break;
-    case AVRO_MAP:
-        {
-            const GenericMap::Value& r = datum.value<GenericMap>().value();
-            e.mapStart();
-            if (! r.empty()) {
-                e.setItemCount(r.size());
-                for (GenericMap::Value::const_iterator it = r.begin();
-                    it != r.end(); ++it) {
-                    e.startItem();
-                    e.encodeString(it->first);
-                    write(it->second, e);
-                }
+        e.arrayEnd();
+    } break;
+    case AVRO_MAP: {
+        const GenericMap::Value& r = datum.value<GenericMap>().value();
+        e.mapStart();
+        if (!r.empty()) {
+            e.setItemCount(r.size());
+            for (GenericMap::Value::const_iterator it = r.begin(); it != r.end(); ++it) {
+                e.startItem();
+                e.encodeString(it->first);
+                write(it->second, e);
             }
-            e.mapEnd();
         }
-        break;
+        e.mapEnd();
+    } break;
     default:
         throw Exception(boost::format("Unknown schema type %1%") %
-            toString(datum.type()));
+                        toString(datum.type()));
     }
 }
 
-void GenericWriter::write(Encoder& e, const GenericDatum& g)
-{
-    write(g, e);
-}
+void GenericWriter::write(Encoder& e, const GenericDatum& g) { write(g, e); }
 
-}   // namespace avro
+} // namespace avro

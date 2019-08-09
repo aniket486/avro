@@ -24,22 +24,17 @@ using std::vector;
 
 namespace avro {
 
-GenericDatum::GenericDatum(const ValidSchema& schema) :
-    type_(schema.root()->type()),
-    logicalType_(schema.root()->logicalType())
-{
+GenericDatum::GenericDatum(const ValidSchema& schema)
+    : type_(schema.root()->type()), logicalType_(schema.root()->logicalType()) {
     init(schema.root());
 }
 
-GenericDatum::GenericDatum(const NodePtr& schema) :
-    type_(schema->type()),
-    logicalType_(schema->logicalType())
-{
+GenericDatum::GenericDatum(const NodePtr& schema)
+    : type_(schema->type()), logicalType_(schema->logicalType()) {
     init(schema);
 }
 
-void GenericDatum::init(const NodePtr& schema)
-{
+void GenericDatum::init(const NodePtr& schema) {
     NodePtr sc = schema;
     if (type_ == AVRO_SYMBOLIC) {
         sc = resolveSymbol(schema);
@@ -89,17 +84,16 @@ void GenericDatum::init(const NodePtr& schema)
         value_ = GenericUnion(sc);
         break;
     default:
-        throw Exception(boost::format("Unknown schema type %1%") %
-            toString(type_));
+        throw Exception(boost::format("Unknown schema type %1%") % toString(type_));
     }
 }
 
-GenericRecord::GenericRecord(const NodePtr& schema) :
-    GenericContainer(AVRO_RECORD, schema) {
+GenericRecord::GenericRecord(const NodePtr& schema)
+    : GenericContainer(AVRO_RECORD, schema) {
     fields_.resize(schema->leaves());
     for (size_t i = 0; i < schema->leaves(); ++i) {
         fields_[i] = GenericDatum(schema->leafAt(i));
     }
 }
 
-}   // namespace avro
+} // namespace avro

@@ -18,10 +18,10 @@
 
 #define __STDC_LIMIT_MACROS
 
-#include <memory>
 #include "Decoder.hh"
-#include "Zigzag.hh"
 #include "Exception.hh"
+#include "Zigzag.hh"
+#include <memory>
 
 namespace avro {
 
@@ -61,22 +61,13 @@ class BinaryDecoder : public Decoder {
     void more();
 };
 
-DecoderPtr binaryDecoder()
-{
-    return make_shared<BinaryDecoder>();
-}
+DecoderPtr binaryDecoder() { return make_shared<BinaryDecoder>(); }
 
-void BinaryDecoder::init(InputStream& is)
-{
-    in_.reset(is);
-}
+void BinaryDecoder::init(InputStream& is) { in_.reset(is); }
 
-void BinaryDecoder::decodeNull()
-{
-}
+void BinaryDecoder::decodeNull() {}
 
-bool BinaryDecoder::decodeBool()
-{
+bool BinaryDecoder::decodeBool() {
     uint8_t v = in_.read();
     if (v == 0) {
         return false;
@@ -86,68 +77,53 @@ bool BinaryDecoder::decodeBool()
     throw Exception("Invalid value for bool");
 }
 
-int32_t BinaryDecoder::decodeInt()
-{
+int32_t BinaryDecoder::decodeInt() {
     int64_t val = doDecodeLong();
     if (val < INT32_MIN || val > INT32_MAX) {
-        throw Exception(
-            boost::format("Value out of range for Avro int: %1%") % val);
+        throw Exception(boost::format("Value out of range for Avro int: %1%") % val);
     }
     return static_cast<int32_t>(val);
 }
 
-int64_t BinaryDecoder::decodeLong()
-{
-    return doDecodeLong();
-}
+int64_t BinaryDecoder::decodeLong() { return doDecodeLong(); }
 
-float BinaryDecoder::decodeFloat()
-{
+float BinaryDecoder::decodeFloat() {
     float result;
-    in_.readBytes(reinterpret_cast<uint8_t *>(&result), sizeof(float));
+    in_.readBytes(reinterpret_cast<uint8_t*>(&result), sizeof(float));
     return result;
 }
 
-double BinaryDecoder::decodeDouble()
-{
+double BinaryDecoder::decodeDouble() {
     double result;
-    in_.readBytes(reinterpret_cast<uint8_t *>(&result), sizeof(double));
+    in_.readBytes(reinterpret_cast<uint8_t*>(&result), sizeof(double));
     return result;
 }
 
-size_t BinaryDecoder::doDecodeLength()
-{
+size_t BinaryDecoder::doDecodeLength() {
     ssize_t len = decodeInt();
     if (len < 0) {
-        throw Exception(
-            boost::format("Cannot have negative length: %1%") % len);
+        throw Exception(boost::format("Cannot have negative length: %1%") % len);
     }
     return len;
 }
 
-void BinaryDecoder::drain()
-{
-    in_.drain(false);
-}
+void BinaryDecoder::drain() { in_.drain(false); }
 
-void BinaryDecoder::decodeString(std::string& value)
-{
+void BinaryDecoder::decodeString(std::string& value) {
     size_t len = doDecodeLength();
     value.resize(len);
     if (len > 0) {
-        in_.readBytes(const_cast<uint8_t*>(
-                    reinterpret_cast<const uint8_t*>(value.c_str())), len);
+        in_.readBytes(
+            const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(value.c_str())), len);
     }
 }
 
-void BinaryDecoder::skipString()
-{
+void BinaryDecoder::skipString() {
     size_t len = doDecodeLength();
     in_.skipBytes(len);
 }
 
-void BinaryDecoder::decodeBytes(std::vector<uint8_t>& value)
-{
+void BinaryDecoder::decodeBytes(std::vector<uint8_t>& value) {
     size_t len = doDecodeLength();
     value.resize(len);
     if (len > 0) {
@@ -155,37 +131,25 @@ void BinaryDecoder::decodeBytes(std::vector<uint8_t>& value)
     }
 }
 
-void BinaryDecoder::skipBytes()
-{
+void BinaryDecoder::skipBytes() {
     size_t len = doDecodeLength();
     in_.skipBytes(len);
 }
 
-void BinaryDecoder::decodeFixed(size_t n, std::vector<uint8_t>& value)
-{
+void BinaryDecoder::decodeFixed(size_t n, std::vector<uint8_t>& value) {
     value.resize(n);
     if (n > 0) {
         in_.readBytes(value.data(), n);
     }
 }
 
-void BinaryDecoder::skipFixed(size_t n)
-{
-    in_.skipBytes(n);
-}
+void BinaryDecoder::skipFixed(size_t n) { in_.skipBytes(n); }
 
-size_t BinaryDecoder::decodeEnum()
-{
-    return static_cast<size_t>(doDecodeLong());
-}
+size_t BinaryDecoder::decodeEnum() { return static_cast<size_t>(doDecodeLong()); }
 
-size_t BinaryDecoder::arrayStart()
-{
-    return doDecodeItemCount();
-}
+size_t BinaryDecoder::arrayStart() { return doDecodeItemCount(); }
 
-size_t BinaryDecoder::doDecodeItemCount()
-{
+size_t BinaryDecoder::doDecodeItemCount() {
     int64_t result = doDecodeLong();
     if (result < 0) {
         doDecodeLong();
@@ -194,17 +158,13 @@ size_t BinaryDecoder::doDecodeItemCount()
     return static_cast<size_t>(result);
 }
 
-size_t BinaryDecoder::arrayNext()
-{
-    return static_cast<size_t>(doDecodeLong());
-}
+size_t BinaryDecoder::arrayNext() { return static_cast<size_t>(doDecodeLong()); }
 
-size_t BinaryDecoder::skipArray()
-{
-    for (; ;) {
+size_t BinaryDecoder::skipArray() {
+    for (;;) {
         int64_t r = doDecodeLong();
         if (r < 0) {
-            size_t n = static_cast<size_t>(doDecodeLong()); 
+            size_t n = static_cast<size_t>(doDecodeLong());
             in_.skipBytes(n);
         } else {
             return static_cast<size_t>(r);
@@ -212,25 +172,13 @@ size_t BinaryDecoder::skipArray()
     }
 }
 
-size_t BinaryDecoder::mapStart()
-{
-    return doDecodeItemCount();
-}
+size_t BinaryDecoder::mapStart() { return doDecodeItemCount(); }
 
-size_t BinaryDecoder::mapNext()
-{
-    return doDecodeItemCount();
-}
+size_t BinaryDecoder::mapNext() { return doDecodeItemCount(); }
 
-size_t BinaryDecoder::skipMap()
-{
-    return skipArray();
-}
+size_t BinaryDecoder::skipMap() { return skipArray(); }
 
-size_t BinaryDecoder::decodeUnionIndex()
-{
-    return static_cast<size_t>(doDecodeLong());
-}
+size_t BinaryDecoder::decodeUnionIndex() { return static_cast<size_t>(doDecodeLong()); }
 
 int64_t BinaryDecoder::doDecodeLong() {
     uint64_t encoded = 0;
@@ -248,5 +196,4 @@ int64_t BinaryDecoder::doDecodeLong() {
     return decodeZigzag64(encoded);
 }
 
-}   // namespace avro
-
+} // namespace avro

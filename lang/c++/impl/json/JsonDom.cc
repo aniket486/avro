@@ -22,30 +22,36 @@
 
 #include <string.h>
 
-#include "Stream.hh"
 #include "JsonIO.hh"
+#include "Stream.hh"
 
-using std::string;
 using boost::format;
+using std::string;
 
 namespace avro {
 namespace json {
-const char* typeToString(EntityType t)
-{
+const char* typeToString(EntityType t) {
     switch (t) {
-    case etNull: return "null";
-    case etBool: return "bool";
-    case etLong: return "long";
-    case etDouble: return "double";
-    case etString: return "string";
-    case etArray: return "array";
-    case etObject: return "object";
-    default: return "unknown";
+    case etNull:
+        return "null";
+    case etBool:
+        return "bool";
+    case etLong:
+        return "long";
+    case etDouble:
+        return "double";
+    case etString:
+        return "string";
+    case etArray:
+        return "array";
+    case etObject:
+        return "object";
+    default:
+        return "unknown";
     }
 }
 
-Entity readEntity(JsonParser& p)
-{
+Entity readEntity(JsonParser& p) {
     switch (p.peek()) {
     case JsonParser::tkNull:
         p.advance();
@@ -62,57 +68,50 @@ Entity readEntity(JsonParser& p)
     case JsonParser::tkString:
         p.advance();
         return Entity(std::make_shared<String>(p.rawString()), p.line());
-    case JsonParser::tkArrayStart:
-        {
-            size_t l = p.line();
-            p.advance();
-            std::shared_ptr<Array> v = std::make_shared<Array>();
-            while (p.peek() != JsonParser::tkArrayEnd) {
-                v->push_back(readEntity(p));
-            }
-            p.advance();
-            return Entity(v, l);
+    case JsonParser::tkArrayStart: {
+        size_t l = p.line();
+        p.advance();
+        std::shared_ptr<Array> v = std::make_shared<Array>();
+        while (p.peek() != JsonParser::tkArrayEnd) {
+            v->push_back(readEntity(p));
         }
-    case JsonParser::tkObjectStart:
-        {
-            size_t l = p.line();
+        p.advance();
+        return Entity(v, l);
+    }
+    case JsonParser::tkObjectStart: {
+        size_t l = p.line();
+        p.advance();
+        std::shared_ptr<Object> v = std::make_shared<Object>();
+        while (p.peek() != JsonParser::tkObjectEnd) {
             p.advance();
-            std::shared_ptr<Object> v = std::make_shared<Object>();
-            while (p.peek() != JsonParser::tkObjectEnd) {
-                p.advance();
-                std::string k = p.stringValue();
-                Entity n = readEntity(p);
-                v->insert(std::make_pair(k, n));
-            }
-            p.advance();
-            return Entity(v, l);
+            std::string k = p.stringValue();
+            Entity n = readEntity(p);
+            v->insert(std::make_pair(k, n));
         }
+        p.advance();
+        return Entity(v, l);
+    }
     default:
         throw std::domain_error(JsonParser::toString(p.peek()));
     }
-    
 }
 
-Entity loadEntity(const char* text)
-{
+Entity loadEntity(const char* text) {
     return loadEntity(reinterpret_cast<const uint8_t*>(text), ::strlen(text));
 }
 
-Entity loadEntity(InputStream& in)
-{
+Entity loadEntity(InputStream& in) {
     JsonParser p;
     p.init(in);
     return readEntity(p);
 }
 
-Entity loadEntity(const uint8_t* text, size_t len)
-{
+Entity loadEntity(const uint8_t* text, size_t len) {
     std::unique_ptr<InputStream> in = memoryInputStream(text, len);
     return loadEntity(*in);
 }
 
-void writeEntity(JsonGenerator<JsonNullFormatter>& g, const Entity& n)
-{
+void writeEntity(JsonGenerator<JsonNullFormatter>& g, const Entity& n) {
     switch (n.type()) {
     case etNull:
         g.encodeNull();
@@ -129,59 +128,52 @@ void writeEntity(JsonGenerator<JsonNullFormatter>& g, const Entity& n)
     case etString:
         g.encodeString(n.stringValue());
         break;
-    case etArray:
-        {
-            g.arrayStart();
-            const Array& v = n.arrayValue();
-            for (Array::const_iterator it = v.begin();
-                it != v.end(); ++it) {
-                writeEntity(g, *it);
-            }
-            g.arrayEnd();
+    case etArray: {
+        g.arrayStart();
+        const Array& v = n.arrayValue();
+        for (Array::const_iterator it = v.begin(); it != v.end(); ++it) {
+            writeEntity(g, *it);
         }
-        break;
-    case etObject:
-        {
-            g.objectStart();
-            const Object& v = n.objectValue();
-            for (Object::const_iterator it = v.begin(); it != v.end(); ++it) {
-                g.encodeString(it->first);
-                writeEntity(g, it->second);
-            }
-            g.objectEnd();
+        g.arrayEnd();
+    } break;
+    case etObject: {
+        g.objectStart();
+        const Object& v = n.objectValue();
+        for (Object::const_iterator it = v.begin(); it != v.end(); ++it) {
+            g.encodeString(it->first);
+            writeEntity(g, it->second);
         }
-        break;
+        g.objectEnd();
+    } break;
     }
 }
 
-void Entity::ensureType(EntityType type) const
-{
+void Entity::ensureType(EntityType type) const {
     if (type_ != type) {
         format msg = format("Invalid type. Expected \"%1%\" actual %2%") %
-            typeToString(type) % typeToString(type_);
+                     typeToString(type) % typeToString(type_);
         throw Exception(msg);
     }
 }
-    
+
 String Entity::stringValue() const {
     ensureType(etString);
-    return JsonParser::toStringValue(**boost::any_cast<std::shared_ptr<String> >(&value_));
+    return JsonParser::toStringValue(**boost::any_cast<std::shared_ptr<String>>(&value_));
 }
 
 String Entity::bytesValue() const {
     ensureType(etString);
-    return JsonParser::toBytesValue(**boost::any_cast<std::shared_ptr<String> >(&value_));
+    return JsonParser::toBytesValue(**boost::any_cast<std::shared_ptr<String>>(&value_));
 }
 
-std::string Entity::toString() const
-{
+std::string Entity::toString() const {
     std::unique_ptr<OutputStream> out = memoryOutputStream();
     JsonGenerator<JsonNullFormatter> g;
     g.init(*out);
     writeEntity(g, *this);
     g.flush();
     std::unique_ptr<InputStream> in = memoryInputStream(*out);
-    const uint8_t *p = 0;
+    const uint8_t* p = 0;
     size_t n = 0;
     size_t c = 0;
     while (in->next(&p, &n)) {
@@ -198,6 +190,5 @@ std::string Entity::toString() const
     return result;
 }
 
-}
-}
-
+} // namespace json
+} // namespace avro

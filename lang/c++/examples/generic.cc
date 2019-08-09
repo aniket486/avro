@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-#include <fstream>
 #include <complex>
+#include <fstream>
 
 #include "cpx.hh"
 
 #include "avro/Compiler.hh"
-#include "avro/Encoder.hh"
 #include "avro/Decoder.hh"
-#include "avro/Specific.hh"
+#include "avro/Encoder.hh"
 #include "avro/Generic.hh"
+#include "avro/Specific.hh"
 
-int
-main()
-{
+int main() {
     std::ifstream ifs("cpx.json");
 
     avro::ValidSchema cpxSchema;

@@ -18,13 +18,12 @@
 
 #include <complex>
 
-#include "avro/Encoder.hh"
 #include "avro/Decoder.hh"
+#include "avro/Encoder.hh"
 #include "avro/Specific.hh"
 
 namespace avro {
-template<typename T>
-struct codec_traits<std::complex<T> > {
+template <typename T> struct codec_traits<std::complex<T>> {
     static void encode(Encoder& e, const std::complex<T>& c) {
         avro::encode(e, std::real(c));
         avro::encode(e, std::imag(c));
@@ -38,10 +37,8 @@ struct codec_traits<std::complex<T> > {
     }
 };
 
-}
-int
-main()
-{
+} // namespace avro
+int main() {
     std::unique_ptr<avro::OutputStream> out = avro::memoryOutputStream();
     avro::EncoderPtr e = avro::binaryEncoder();
     e->init(*out);
